@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="80dp">
+
+    <HorizontalScrollView
+        android:id="@+id/hsv_clip"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginLeft="8dp"
+        android:layout_marginRight="8dp"
+        android:scrollbars="none">
+
+    </HorizontalScrollView>
+
+    <LinearLayout
+        android:id="@+id/ll_clip"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/ll_left"
+            android:layout_width="8dp"
+            android:layout_height="match_parent"
+            android:background="#33000000"
+            android:orientation="horizontal"></LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/ll_start"
+            android:layout_width="15dp"
+            android:layout_height="match_parent"
+            android:background="#ffffff"
+            android:orientation="horizontal"></LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/ll_center"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#f1f1f1"
+            android:orientation="horizontal"></LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/ll_end"
+            android:layout_width="15dp"
+            android:layout_height="match_parent"
+            android:background="#ffffff"
+            android:orientation="horizontal"></LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/ll_right"
+            android:layout_width="8dp"
+            android:layout_height="match_parent"
+            android:background="#33000000"
+            android:orientation="horizontal"></LinearLayout>
+    </LinearLayout>
+</FrameLayout>
