@@ -18,15 +18,15 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         final ClipLayout clipLayout = (ClipLayout) findViewById(R.id.v);
-        ValueAnimator valueAnimator = ValueAnimator.ofInt(8, 200);
-        valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                clipLayout.setX((int) animation.getAnimatedValue());
-            }
-        });
-        valueAnimator.setDuration(6000);
-        valueAnimator.start();
+//        ValueAnimator valueAnimator = ValueAnimator.ofInt(8, 200);
+//        valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+//            @Override
+//            public void onAnimationUpdate(ValueAnimator animation) {
+//                clipLayout.setX((int) animation.getAnimatedValue());
+//            }
+//        });
+//        valueAnimator.setDuration(6000);
+//        valueAnimator.start();
 
     }
 }
