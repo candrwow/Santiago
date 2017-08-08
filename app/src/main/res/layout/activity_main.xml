@@ -8,5 +8,7 @@
     <cn.candrwow.clipui.ClipLayout
         android:id="@+id/v"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
+
+    </cn.candrwow.clipui.ClipLayout>
 </RelativeLayout>
