@@ -1,5 +1,7 @@
 package cn.candrwow.clipui;
 
+import android.animation.Animator;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.RectF;
@@ -8,7 +10,6 @@ import android.os.Environment;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.LinearLayoutCompat;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,6 +17,7 @@ import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
+import android.widget.SeekBar;
 import android.widget.VideoView;
 
 import com.bumptech.glide.Glide;
@@ -23,6 +25,7 @@ import com.bumptech.glide.Glide;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
@@ -46,6 +49,7 @@ public class ClipLayout extends LinearLayout {
     VideoView videoView;
     ImageView ivFrame;
     RelativeLayout rlFrame;
+    SeekBar seekBar;
     //所有的时长均按秒为单位
     //能够选取的最大视频时长，例如限定小视频10~20秒，用户可以选取一个40秒的视频来剪辑，40是最大选取时长，最大选取视频长度不能超过MaxAcceptTime*2
     int MaxShowTime = 480;
@@ -57,6 +61,7 @@ public class ClipLayout extends LinearLayout {
     int MinWidth = 0;
     //视频裁剪ScrollView的宽度，屏幕宽-左右margin
     int ClipScreenLength = 0;
+    ValueAnimator seekAnimator;
 
     public ClipPositionListener getClipPositionListener() {
         return clipPositionListener;
@@ -79,25 +84,52 @@ public class ClipLayout extends LinearLayout {
         initView(context);
     }
 
+
     public void initClipPositionListener() {
         this.setClipPositionListener(new ClipPositionListener() {
             @Override
-            public void onStartPosChange(int startPos, int endPos, String url) {
-                videoView.seekTo(startPos * 1000);
-//                videoView.start();
+            public void onStartPosChange(final int startPos, final int endPos, String url) {
                 rlFrame.setVisibility(VISIBLE);
-                ivFrame.setImageBitmap(mmr.getFrameAtTime(startPos * 1000 * 1000));
+                ivFrame.setImageBitmap(mmr.getFrameAtTime(startPos * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
+                videoView.seekTo(startPos * 1000);
+                seekBar.setMax((endPos - startPos) * 1000);
+                seekBar.setProgress(0);
+                seekAnimator = null;
+                seekAnimator = ValueAnimator.ofInt(0, (endPos - startPos) * 1000);
+                seekAnimator.setDuration((endPos - startPos) * 1000);
+            }
 
+
+            @Override
+            public void onEndPosChange(final int startPos, final int endPos, String url) {
+                rlFrame.setVisibility(VISIBLE);
+                ivFrame.setImageBitmap(mmr.getFrameAtTime(endPos * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
+                videoView.seekTo(startPos * 1000);
+                seekBar.setMax((endPos - startPos) * 1000);
+                seekBar.setProgress(0);
+                seekAnimator = null;
+                seekAnimator = ValueAnimator.ofInt(0, (endPos - startPos) * 1000);
+                seekAnimator.setDuration((endPos - startPos) * 1000);
             }
 
             @Override
-            public void onEndPosChange(int startPos, int endPos, String url) {
-
-            }
-
-            @Override
-            public void onScrollPosChange(int startPos, int endPos, String url) {
-
+            public void onScrollPosChange(final int startPos, final int endPos, String url) {
+                Observable.timer(1, TimeUnit.SECONDS)
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(new Action1<Long>() {
+                            @Override
+                            public void call(Long aLong) {
+                                rlFrame.setVisibility(VISIBLE);
+                                ivFrame.setImageBitmap(mmr.getFrameAtTime(startPos * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
+                                videoView.seekTo(startPos * 1000);
+                                seekBar.setMax((endPos - startPos) * 1000);
+                                seekBar.setProgress(0);
+                                seekAnimator = null;
+                                seekAnimator = ValueAnimator.ofInt(0, (endPos - startPos) * 1000);
+                                seekAnimator.setDuration((endPos - startPos) * 1000);
+                            }
+                        });
             }
 
             @Override
@@ -145,6 +177,7 @@ public class ClipLayout extends LinearLayout {
         videoView.setVideoPath(url);
         ivFrame.setImageBitmap(mmr.getFrameAtTime(0 * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
         videoView.seekTo(0);
+        videoView.start();
         listImageView = new ArrayList<>();
         //extractMetaData默认单位是毫秒
         videoLength = Integer.parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)) / 1000;
@@ -258,11 +291,47 @@ public class ClipLayout extends LinearLayout {
         rlFrame.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (videoView != null)
+                if (videoView != null && !videoView.isPlaying() && seekAnimator != null) {
+                    seekBar.setVisibility(VISIBLE);
                     videoView.start();
+                    final int currentPos = videoView.getCurrentPosition();
+                    seekAnimator.start();
+                    seekAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                        @Override
+                        public void onAnimationUpdate(ValueAnimator valueAnimator) {
+                            seekBar.setProgress((int) valueAnimator.getAnimatedValue());
+                        }
+                    });
+                    seekAnimator.addListener(new Animator.AnimatorListener() {
+                        @Override
+                        public void onAnimationStart(Animator animator) {
+
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animator animator) {
+                            videoView.pause();
+                            videoView.seekTo(currentPos);
+                            rlFrame.setVisibility(VISIBLE);
+                            seekBar.setVisibility(GONE);
+                        }
+
+                        @Override
+                        public void onAnimationCancel(Animator animator) {
+
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animator animator) {
+
+                        }
+                    });
+                }
                 rlFrame.setVisibility(GONE);
             }
         });
+        seekBar = findViewById(R.id.seekBar);
+        seekBar.setThumbOffset(0);
         setVideo("");
     }
 
@@ -280,8 +349,6 @@ public class ClipLayout extends LinearLayout {
     public boolean dispatchTouchEvent(MotionEvent ev) {
         float X = ev.getRawX();
         float Y = ev.getRawY();
-        if (videoView.isPlaying())
-            videoView.stopPlayback();
         if (ev.getAction() == MotionEvent.ACTION_DOWN) {
             int[] locStart = new int[2];
             int[] locEnd = new int[2];
@@ -293,23 +360,35 @@ public class ClipLayout extends LinearLayout {
             RectF RectFEnd = new RectF(locEnd[0], locEnd[1], locEnd[0] + llEndPos.getMeasuredWidth(), locEnd[1] + llEndPos.getMeasuredHeight());
             RectF RectFSv = new RectF(locSv[0], locSv[1], locSv[0] + svClip.getMeasuredWidth(), locSv[1] + svClip.getMeasuredHeight());
             if (RectFStart.contains(X, Y)) {
+                if (videoView.isPlaying())
+                    videoView.pause();
                 nowTouchView = 0;
                 DownX = X;
                 LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) llLeft.getLayoutParams();
                 llLeftWidth = params.width;
                 //记录手指响应的点距离滑块最左侧距离
                 fingerOffset = (int) (X - locStart[0]);
+                seekAnimator = null;
+                seekBar.setVisibility(GONE);
             } else if (RectFEnd.contains(X, Y)) {
+                if (videoView.isPlaying())
+                    videoView.pause();
                 nowTouchView = 1;
                 DownX = X;
                 LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) llRight.getLayoutParams();
                 llRightWidth = params.width;
                 fingerOffset = (int) (X - locEnd[0]);
+                seekAnimator = null;
+                seekBar.setVisibility(GONE);
             } else if (RectFSv.contains(X, Y)) {
+                if (videoView.isPlaying())
+                    videoView.pause();
                 //如果位置在控件的左右margin上不做任何处理，如果事件在遮罩上交给super.dispatchTouchEvent(ev)处理
                 nowTouchView = 2;
                 DownX = 0;
                 fingerOffset = 0;
+                seekAnimator = null;
+                seekBar.setVisibility(GONE);
             } else {
                 nowTouchView = 3;
                 DownX = 0;
@@ -329,30 +408,50 @@ public class ClipLayout extends LinearLayout {
             if (nowTouchView == 0) {
                 // TODO: 2017/8/7 调用事件监听
                 if (clipPositionListener != null) {
-                    Log.d("ClipLayout", "svClip.getScrollX():" + svClip.getScrollX());
-                    Log.d("ClipLayout", "llSvClip.getWidth():" + llSvClip.getWidth());
                     //左滑块的位移
                     int llStartOffset = (int) llStartPos.getX();
                     //右滑块距离最左侧的位移,由于屏幕最左侧有Margin（等于滑块宽度），所以要减掉宽度
                     int llEndOffset = (int) llEndPos.getX() - llEndPos.getMeasuredWidth();
-                    //左滑块右侧距离右滑块左侧距离
-                    int StartEnd = llEndOffset - llStartOffset - llStartPos.getMeasuredWidth();
                     //当前滚动栏所滚动的视频百分比
                     float ScrollPercent = (float) svClip.getScrollX() / (float) llSvClip.getWidth();
                     //左滑块占总进度的位移百分比
-                    float StartPercent = (float) llStartOffset / (float) llSvClip.getWidth();
-                    float EndPercent = (float) llEndOffset / (float) llSvClip.getWidth();
-                    clipPositionListener.onStartPosChange((int) (videoLength * (ScrollPercent + StartPercent)), (int) (videoLength * (ScrollPercent + EndPercent)), "");
+                    float StartPercent = (float) (llStartOffset + svClip.getScrollX()) / (float) llSvClip.getWidth();
+                    float EndPercent = (float) (llEndOffset + svClip.getScrollX()) / (float) llSvClip.getWidth();
+//                    clipPositionListener.onStartPosChange((int) (videoLength * (ScrollPercent + StartPercent)), (int) (videoLength * (ScrollPercent + EndPercent)), "");
+                    clipPositionListener.onStartPosChange((int) (videoLength * StartPercent), (int) (videoLength * EndPercent), "");
                 }
             } else if (nowTouchView == 1) {
                 // TODO: 2017/8/7 调用结束按键事件监听
+                //左滑块的位移
+                int llStartOffset = (int) llStartPos.getX();
+                //右滑块距离最左侧的位移,由于屏幕最左侧有Margin（等于滑块宽度），所以要减掉宽度
+                int llEndOffset = (int) llEndPos.getX() - llEndPos.getMeasuredWidth();
+                //当前滚动栏所滚动的视频百分比
+                float ScrollPercent = (float) svClip.getScrollX() / (float) llSvClip.getWidth();
+                //左滑块占总进度的位移百分比
+                float StartPercent = (float) (llStartOffset + svClip.getScrollX()) / (float) llSvClip.getWidth();
+                float EndPercent = (float) (llEndOffset + svClip.getScrollX()) / (float) llSvClip.getWidth();
+                clipPositionListener.onEndPosChange((int) (videoLength * StartPercent), (int) (videoLength * EndPercent), "");
             } else if (nowTouchView == 2) {
                 // TODO: 2017/8/8 滑动暂时不监听，交给ScrollView的ScrollListener处理
+                //左滑块的位移
+                int llStartOffset = (int) llStartPos.getX();
+                //右滑块距离最左侧的位移,由于屏幕最左侧有Margin（等于滑块宽度），所以要减掉宽度
+                int llEndOffset = (int) llEndPos.getX() - llEndPos.getMeasuredWidth();
+                //当前滚动栏所滚动的视频百分比
+                float ScrollPercent = (float) svClip.getScrollX() / (float) llSvClip.getWidth();
+                //左滑块占总进度的位移百分比
+                float StartPercent = (float) (llStartOffset + svClip.getScrollX()) / (float) llSvClip.getWidth();
+                float EndPercent = (float) (llEndOffset + svClip.getScrollX()) / (float) llSvClip.getWidth();
+                clipPositionListener.onScrollPosChange((int) (videoLength * StartPercent), (int) (videoLength * EndPercent), "");
             }
             nowTouchView = 4;
             DownX = 0;
             fingerOffset = 0;
+        } else {
+            return false;
         }
+
         return super.dispatchTouchEvent(ev);
     }
 

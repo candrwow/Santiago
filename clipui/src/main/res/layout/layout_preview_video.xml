@@ -24,6 +24,7 @@
             android:layout_alignBottom="@+id/videoview"
             android:layout_alignLeft="@+id/videoview"
             android:layout_alignRight="@+id/videoview"
+            android:visibility="gone"
             android:layout_alignTop="@+id/videoview">
 
             <ImageView

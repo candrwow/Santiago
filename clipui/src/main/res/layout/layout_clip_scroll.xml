@@ -77,7 +77,17 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:background="#00f1f1f1"
-                android:orientation="horizontal"></LinearLayout>
+                android:orientation="horizontal">
+
+                <android.support.v7.widget.AppCompatSeekBar
+                    android:id="@+id/seekBar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:paddingEnd="0dp"
+                    android:paddingStart="0dp"
+                    android:progressDrawable="@drawable/seekbar_bg"
+                    android:thumb="@drawable/seekbar_thumb" />
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/ll_end"
