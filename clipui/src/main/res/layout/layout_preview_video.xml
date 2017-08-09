@@ -24,14 +24,15 @@
             android:layout_alignBottom="@+id/videoview"
             android:layout_alignLeft="@+id/videoview"
             android:layout_alignRight="@+id/videoview"
-            android:visibility="gone"
-            android:layout_alignTop="@+id/videoview">
+            android:layout_alignTop="@+id/videoview"
+            android:visibility="gone">
 
             <ImageView
                 android:id="@+id/iv_frame"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:src="@drawable/images" />
+                android:src="@drawable/images"
+                android:visibility="gone" />
 
             <ImageView
                 android:layout_width="36dp"

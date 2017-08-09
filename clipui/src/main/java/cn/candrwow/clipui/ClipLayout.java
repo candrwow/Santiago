@@ -90,7 +90,7 @@ public class ClipLayout extends LinearLayout {
             @Override
             public void onStartPosChange(final int startPos, final int endPos, String url) {
                 rlFrame.setVisibility(VISIBLE);
-                ivFrame.setImageBitmap(mmr.getFrameAtTime(startPos * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
+                //ivFrame.setImageBitmap(mmr.getFrameAtTime(startPos * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
                 videoView.seekTo(startPos * 1000);
                 seekBar.setMax((endPos - startPos) * 1000);
                 seekBar.setProgress(0);
@@ -103,7 +103,7 @@ public class ClipLayout extends LinearLayout {
             @Override
             public void onEndPosChange(final int startPos, final int endPos, String url) {
                 rlFrame.setVisibility(VISIBLE);
-                ivFrame.setImageBitmap(mmr.getFrameAtTime(endPos * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
+                //ivFrame.setImageBitmap(mmr.getFrameAtTime(endPos * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
                 videoView.seekTo(startPos * 1000);
                 seekBar.setMax((endPos - startPos) * 1000);
                 seekBar.setProgress(0);
@@ -121,7 +121,7 @@ public class ClipLayout extends LinearLayout {
                             @Override
                             public void call(Long aLong) {
                                 rlFrame.setVisibility(VISIBLE);
-                                ivFrame.setImageBitmap(mmr.getFrameAtTime(startPos * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
+                                //ivFrame.setImageBitmap(mmr.getFrameAtTime(startPos * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
                                 videoView.seekTo(startPos * 1000);
                                 seekBar.setMax((endPos - startPos) * 1000);
                                 seekBar.setProgress(0);
@@ -175,7 +175,7 @@ public class ClipLayout extends LinearLayout {
         mmr = new MediaMetadataRetriever();
         mmr.setDataSource(url);
         videoView.setVideoPath(url);
-        ivFrame.setImageBitmap(mmr.getFrameAtTime(0 * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
+        //ivFrame.setImageBitmap(mmr.getFrameAtTime(0 * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
         videoView.seekTo(0);
         videoView.start();
         listImageView = new ArrayList<>();
