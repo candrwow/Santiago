@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Santiago.iml" filepath="$PROJECT_DIR$/Santiago.iml" />
-      <module fileurl="file://C:\Code\Santiago\Santiago.iml" filepath="C:\Code\Santiago\Santiago.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/clipui/clipui.iml" filepath="$PROJECT_DIR$/clipui/clipui.iml" />
     </modules>

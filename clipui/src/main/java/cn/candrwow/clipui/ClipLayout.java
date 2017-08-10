@@ -10,6 +10,7 @@ import android.os.Environment;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.LinearLayoutCompat;
 import android.util.AttributeSet;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,6 +19,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.VideoView;
 
 import com.bumptech.glide.Glide;
@@ -46,6 +48,7 @@ public class ClipLayout extends LinearLayout {
     //起始滑块左侧，滑块中央，终止滑块右侧
     LinearLayout llLeft, llCenter, llRight, llClip, llSvClip;
     ClipPositionListener clipPositionListener;
+    TextView tvClipTime;
     VideoView videoView;
     ImageView ivFrame;
     RelativeLayout rlFrame;
@@ -245,7 +248,7 @@ public class ClipLayout extends LinearLayout {
         inflate(context, R.layout.layout_preview_video, this);
         inflate(context, R.layout.layout_clip_scroll, this);
         inflate(context, R.layout.layout_clip_bar, this);
-
+        tvClipTime = findViewById(R.id.tv_clip_time);
         llStartPos = findViewById(R.id.ll_start);
         llEndPos = findViewById(R.id.ll_end);
         svClip = findViewById(R.id.hsv_clip);
@@ -473,6 +476,11 @@ public class ClipLayout extends LinearLayout {
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) llLeft.getLayoutParams();
         params.width = llLeftWidth + (int) (moveX - DownX);
         llLeft.setLayoutParams(params);
+        tvClipTime.setText(TimeUtils.SecondToString(getNowClipLength()));
+        RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) tvClipTime.getLayoutParams();
+        layoutParams.width = (int) (llEndPos.getX() - llStartPos.getX() + llEndPos.getWidth());
+        layoutParams.setMargins(locStartPos[0], getResources().getDimensionPixelSize(R.dimen.clip_time_margin_top), locEndPos[1], getResources().getDimensionPixelSize(R.dimen.clip_time_margin_bottom));
+        tvClipTime.setLayoutParams(layoutParams);
 //        }
     }
 
@@ -487,6 +495,22 @@ public class ClipLayout extends LinearLayout {
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) llRight.getLayoutParams();
         params.width = llRightWidth - (int) (moveX - DownX);
         llRight.setLayoutParams(params);
+        tvClipTime.setText(TimeUtils.SecondToString(getNowClipLength()));
+        RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) tvClipTime.getLayoutParams();
+        layoutParams.width = (int) (llEndPos.getX() - llStartPos.getX() + llEndPos.getWidth());
+        layoutParams.setMargins(locStartPos[0], getResources().getDimensionPixelSize(R.dimen.clip_time_margin_top), locEndPos[1], getResources().getDimensionPixelSize(R.dimen.clip_time_margin_bottom));
+        tvClipTime.setLayoutParams(layoutParams);
     }
 
+    /**
+     * 获取滑块滑动过程中或者结束滑动后，选取部分的时长
+     */
+    public int getNowClipLength() {
+        int llStartOffset = (int) llStartPos.getX();
+        //右滑块距离最左侧的位移,由于屏幕最左侧有Margin（等于滑块宽度），所以要减掉宽度
+        int llEndOffset = (int) llEndPos.getX() - llEndPos.getMeasuredWidth();
+        int nowClipLength = (int) (videoLength * (llEndOffset - llStartOffset + 0.0f) / (float) llSvClip.getWidth());
+//        videoLength是秒数不需要除以1000转换
+        return nowClipLength;
+    }
 }
