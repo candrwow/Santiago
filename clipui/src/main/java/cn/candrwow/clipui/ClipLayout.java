@@ -10,10 +10,12 @@ import android.os.Environment;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.LinearLayoutCompat;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.LinearInterpolator;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -49,6 +51,7 @@ public class ClipLayout extends LinearLayout {
     LinearLayout llLeft, llCenter, llRight, llClip, llSvClip;
     ClipPositionListener clipPositionListener;
     TextView tvClipTime;
+    TextView tvPlayTime;
     VideoView videoView;
     ImageView ivFrame;
     RelativeLayout rlFrame;
@@ -99,6 +102,7 @@ public class ClipLayout extends LinearLayout {
                 seekBar.setProgress(0);
                 seekAnimator = null;
                 seekAnimator = ValueAnimator.ofInt(0, (endPos - startPos) * 1000);
+                seekAnimator.setInterpolator(new LinearInterpolator());
                 seekAnimator.setDuration((endPos - startPos) * 1000);
             }
 
@@ -112,27 +116,22 @@ public class ClipLayout extends LinearLayout {
                 seekBar.setProgress(0);
                 seekAnimator = null;
                 seekAnimator = ValueAnimator.ofInt(0, (endPos - startPos) * 1000);
+                seekAnimator.setInterpolator(new LinearInterpolator());
                 seekAnimator.setDuration((endPos - startPos) * 1000);
             }
 
             @Override
             public void onScrollPosChange(final int startPos, final int endPos, String url) {
-                Observable.timer(1, TimeUnit.SECONDS)
-                        .subscribeOn(Schedulers.io())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(new Action1<Long>() {
-                            @Override
-                            public void call(Long aLong) {
-                                rlFrame.setVisibility(VISIBLE);
-                                //ivFrame.setImageBitmap(mmr.getFrameAtTime(startPos * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
-                                videoView.seekTo(startPos * 1000);
-                                seekBar.setMax((endPos - startPos) * 1000);
-                                seekBar.setProgress(0);
-                                seekAnimator = null;
-                                seekAnimator = ValueAnimator.ofInt(0, (endPos - startPos) * 1000);
-                                seekAnimator.setDuration((endPos - startPos) * 1000);
-                            }
-                        });
+                rlFrame.setVisibility(VISIBLE);
+                //ivFrame.setImageBitmap(mmr.getFrameAtTime(startPos * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
+                videoView.seekTo(startPos * 1000);
+                seekBar.setMax((endPos - startPos) * 1000);
+                seekBar.setProgress(0);
+                seekAnimator = null;
+                seekAnimator = ValueAnimator.ofInt(0, (endPos - startPos) * 1000);
+                seekAnimator.setInterpolator(new LinearInterpolator());
+                seekAnimator.setDuration((endPos - startPos) * 1000);
+
             }
 
             @Override
@@ -178,7 +177,6 @@ public class ClipLayout extends LinearLayout {
         mmr = new MediaMetadataRetriever();
         mmr.setDataSource(url);
         videoView.setVideoPath(url);
-        //ivFrame.setImageBitmap(mmr.getFrameAtTime(0 * 1000 * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC));
         videoView.seekTo(0);
         videoView.start();
         listImageView = new ArrayList<>();
@@ -249,6 +247,7 @@ public class ClipLayout extends LinearLayout {
         inflate(context, R.layout.layout_clip_scroll, this);
         inflate(context, R.layout.layout_clip_bar, this);
         tvClipTime = findViewById(R.id.tv_clip_time);
+        tvPlayTime = findViewById(R.id.tv_play_time);
         llStartPos = findViewById(R.id.ll_start);
         llEndPos = findViewById(R.id.ll_end);
         svClip = findViewById(R.id.hsv_clip);
@@ -298,25 +297,52 @@ public class ClipLayout extends LinearLayout {
                     seekBar.setVisibility(VISIBLE);
                     videoView.start();
                     final int currentPos = videoView.getCurrentPosition();
-                    seekAnimator.start();
                     seekAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                         @Override
                         public void onAnimationUpdate(ValueAnimator valueAnimator) {
                             seekBar.setProgress((int) valueAnimator.getAnimatedValue());
+                            int playTime = ((int) valueAnimator.getAnimatedValue()) / 1000;
+                            //在动画结束最后一帧，会出现时间不正确的问题，强制不能大于选取时长避免这一问题
+                            if (playTime > getNowClipLength())
+                                playTime = getNowClipLength();
+                            tvPlayTime.setText(TimeUtils.SecondToString(playTime));
+                            RelativeLayout.LayoutParams playTimeLayoutParams = (RelativeLayout.LayoutParams) tvPlayTime.getLayoutParams();
+                            playTimeLayoutParams.setMargins((int) (llStartPos.getX() + llStartPos.getWidth() + (llEndPos.getX() - llStartPos.getX() - llStartPos.getWidth()) * (float) seekBar.getProgress() / (float) seekBar.getMax()) - tvPlayTime.getWidth() / 2, getResources().getDimensionPixelSize(R.dimen.clip_time_margin_top), 0, getResources().getDimensionPixelSize(R.dimen.clip_time_margin_bottom));
+                            tvPlayTime.setLayoutParams(playTimeLayoutParams);
+
                         }
                     });
                     seekAnimator.addListener(new Animator.AnimatorListener() {
                         @Override
                         public void onAnimationStart(Animator animator) {
-
+                            tvClipTime.setVisibility(INVISIBLE);
+                            tvPlayTime.setVisibility(VISIBLE);
+                            tvPlayTime.setText("0:00");
                         }
 
                         @Override
                         public void onAnimationEnd(Animator animator) {
                             videoView.pause();
-                            videoView.seekTo(currentPos);
-                            rlFrame.setVisibility(VISIBLE);
-                            seekBar.setVisibility(GONE);
+                            //等待视频彻底停止，pause是个异步方法会出现音画进度不同步，延迟执行调整进度
+                            Observable.timer(500, TimeUnit.MILLISECONDS)
+                                    .subscribeOn(Schedulers.io())
+                                    .observeOn(AndroidSchedulers.mainThread())
+                                    .subscribe(new Action1<Long>() {
+                                        @Override
+                                        public void call(Long aLong) {
+                                            videoView.seekTo(currentPos);
+                                            rlFrame.setVisibility(VISIBLE);
+                                            seekBar.setVisibility(GONE);
+                                            tvClipTime.setVisibility(VISIBLE);
+                                            tvPlayTime.setVisibility(GONE);
+                                            tvPlayTime.setText("0:00");
+                                        }
+                                    }, new Action1<Throwable>() {
+                                        @Override
+                                        public void call(Throwable throwable) {
+
+                                        }
+                                    });
                         }
 
                         @Override
@@ -330,6 +356,7 @@ public class ClipLayout extends LinearLayout {
                         }
                     });
                 }
+                seekAnimator.start();
                 rlFrame.setVisibility(GONE);
             }
         });
@@ -363,8 +390,11 @@ public class ClipLayout extends LinearLayout {
             RectF RectFEnd = new RectF(locEnd[0], locEnd[1], locEnd[0] + llEndPos.getMeasuredWidth(), locEnd[1] + llEndPos.getMeasuredHeight());
             RectF RectFSv = new RectF(locSv[0], locSv[1], locSv[0] + svClip.getMeasuredWidth(), locSv[1] + svClip.getMeasuredHeight());
             if (RectFStart.contains(X, Y)) {
-                if (videoView.isPlaying())
+                if (videoView.isPlaying()) {
                     videoView.pause();
+                    tvClipTime.setVisibility(VISIBLE);
+                    tvPlayTime.setVisibility(GONE);
+                }
                 nowTouchView = 0;
                 DownX = X;
                 LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) llLeft.getLayoutParams();
@@ -374,8 +404,11 @@ public class ClipLayout extends LinearLayout {
                 seekAnimator = null;
                 seekBar.setVisibility(GONE);
             } else if (RectFEnd.contains(X, Y)) {
-                if (videoView.isPlaying())
+                if (videoView.isPlaying()) {
                     videoView.pause();
+                    tvClipTime.setVisibility(VISIBLE);
+                    tvPlayTime.setVisibility(GONE);
+                }
                 nowTouchView = 1;
                 DownX = X;
                 LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) llRight.getLayoutParams();
@@ -383,9 +416,13 @@ public class ClipLayout extends LinearLayout {
                 fingerOffset = (int) (X - locEnd[0]);
                 seekAnimator = null;
                 seekBar.setVisibility(GONE);
+
             } else if (RectFSv.contains(X, Y)) {
-                if (videoView.isPlaying())
+                if (videoView.isPlaying()) {
                     videoView.pause();
+                    tvClipTime.setVisibility(VISIBLE);
+                    tvPlayTime.setVisibility(GONE);
+                }
                 //如果位置在控件的左右margin上不做任何处理，如果事件在遮罩上交给super.dispatchTouchEvent(ev)处理
                 nowTouchView = 2;
                 DownX = 0;
