@@ -10,6 +10,7 @@ import android.os.Environment;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.LinearLayoutCompat;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -58,9 +59,9 @@ public class ClipLayout extends LinearLayout {
     //能够选取的最大视频时长，例如限定小视频10~20秒，用户可以选取一个40秒的视频来剪辑，40是最大选取时长，最大选取视频长度不能超过MaxAcceptTime*2
     int MaxShowTime = 480;
     //能够接受的最大视频时长，上述的20秒
-    int MaxAcceptTime = 240;
+    int MaxAcceptTime = 360;
     //能够接受的最小视频时长，上述的10秒
-    int MinAcceptTime = 10;
+    int MinAcceptTime = 15;
     //左右滑块最短间距，需要根据VideoLength判断
     int MinWidth = 0;
     //视频裁剪ScrollView的宽度，屏幕宽-左右margin
@@ -201,6 +202,7 @@ public class ClipLayout extends LinearLayout {
     public void initVideo(String url) {
         playUrl = url;
         mmr = new MediaMetadataRetriever();
+        Log.d("ClipLayout", url);
         mmr.setDataSource(url);
         videoView.setVideoPath(url);
         videoView.seekTo(0);
@@ -248,6 +250,11 @@ public class ClipLayout extends LinearLayout {
                         public void call(FrameIntoImageView frameIntoImageView) {
                             Glide.with(getContext()).load(frameIntoImageView.getBytes()).into(frameIntoImageView.getImageView());
                         }
+                    }, new Action1<Throwable>() {
+                        @Override
+                        public void call(Throwable throwable) {
+                            Log.d("ClipLayout", "throwable:" + throwable);
+                        }
                     });
         }
     }
@@ -261,7 +268,8 @@ public class ClipLayout extends LinearLayout {
     int defaultFrameNum = 10;
 
     public void setVideo(String url) {
-        url = Environment.getExternalStorageDirectory() + "/a.mp4";
+//        url = Environment.getExternalStorageDirectory() + "/a.mp4";
+        Log.d("ClipLayoutClipLayout", url);
         initVideo(url);
         initClipPositionListener();
     }
@@ -346,8 +354,10 @@ public class ClipLayout extends LinearLayout {
 
                         @Override
                         public void onAnimationEnd(Animator animator) {
-                            if (isStopTrigAnimEnd)
+                            if (isStopTrigAnimEnd) {
+                                isStopTrigAnimEnd = false;
                                 return;
+                            }
                             videoView.pause();
                             //等待视频彻底停止，pause是个异步方法会出现音画进度不同步，延迟执行调整进度
                             Observable.timer(500, TimeUnit.MILLISECONDS)
@@ -388,7 +398,7 @@ public class ClipLayout extends LinearLayout {
         });
         seekBar = (SeekBar) findViewById(R.id.seekBar);
         seekBar.setThumbOffset(0);
-        setVideo("");
+//        setVideo("");
     }
 
     //滑块事件按下位置
