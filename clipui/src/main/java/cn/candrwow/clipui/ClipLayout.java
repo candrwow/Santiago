@@ -10,8 +10,6 @@ import android.os.Environment;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.LinearLayoutCompat;
 import android.util.AttributeSet;
-import android.util.Log;
-import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -67,7 +65,11 @@ public class ClipLayout extends LinearLayout {
     int MinWidth = 0;
     //视频裁剪ScrollView的宽度，屏幕宽-左右margin
     int ClipScreenLength = 0;
+    //专门记录退出进入后台时的起始位置，当从后台再进入前台时，强制从选取的第一帧播放
+    int startPos = 0;
+    int endPos = 0;
     ValueAnimator seekAnimator;
+    String playUrl = "";
 
     public ClipPositionListener getClipPositionListener() {
         return clipPositionListener;
@@ -143,27 +145,50 @@ public class ClipLayout extends LinearLayout {
             public void onCancelClip() {
 
             }
-
-            @Override
-            public void onStart() {
-
-            }
-
-            @Override
-            public void onResume() {
-
-            }
-
-            @Override
-            public void onPause() {
-
-            }
-
-            @Override
-            public void onStop() {
-
-            }
         });
+    }
+
+    //当退出过后台时，标记此属性true。当此值false时，trigStart不执行，认为是第一次打开这个界面
+    boolean isStop = false;
+    //如果是退出导致的动画结束，不执行onAnimationEnd里的逻辑
+    boolean isStopTrigAnimEnd = false;
+
+    /**
+     * 进入后台时保持状态并暂停video,触发onStop方法时调用
+     */
+    public void trigStop() {
+        isStop = true;
+        if (videoView != null) {
+            videoView.pause();
+            if (seekAnimator != null) {
+                isStopTrigAnimEnd = true;
+                seekAnimator.cancel();
+                rlFrame.setVisibility(VISIBLE);
+                seekBar.setVisibility(GONE);
+                tvClipTime.setVisibility(VISIBLE);
+                tvPlayTime.setVisibility(GONE);
+                tvPlayTime.setText("0:00");
+            }
+        }
+    }
+
+    public void trigStart() {
+        if (!isStop)
+            return;
+        try {
+            if (videoView != null && playUrl != null) {
+                videoView.setVideoPath(playUrl);
+                videoView.seekTo(startPos * 1000);
+                seekAnimator = null;
+                seekAnimator = ValueAnimator.ofInt(0, (endPos - startPos) * 1000);
+                seekAnimator.setInterpolator(new LinearInterpolator());
+                seekAnimator.setDuration((endPos - startPos) * 1000);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            videoView.stopPlayback();
+            seekAnimator = null;
+        }
     }
 
     /**
@@ -174,6 +199,7 @@ public class ClipLayout extends LinearLayout {
      */
     // TODO: 2017/8/8 传入时间禁止小于minAcceptTime
     public void initVideo(String url) {
+        playUrl = url;
         mmr = new MediaMetadataRetriever();
         mmr.setDataSource(url);
         videoView.setVideoPath(url);
@@ -238,7 +264,6 @@ public class ClipLayout extends LinearLayout {
         url = Environment.getExternalStorageDirectory() + "/a.mp4";
         initVideo(url);
         initClipPositionListener();
-
     }
 
     public void initView(Context context) {
@@ -246,16 +271,16 @@ public class ClipLayout extends LinearLayout {
         inflate(context, R.layout.layout_preview_video, this);
         inflate(context, R.layout.layout_clip_scroll, this);
         inflate(context, R.layout.layout_clip_bar, this);
-        tvClipTime = findViewById(R.id.tv_clip_time);
-        tvPlayTime = findViewById(R.id.tv_play_time);
-        llStartPos = findViewById(R.id.ll_start);
-        llEndPos = findViewById(R.id.ll_end);
-        svClip = findViewById(R.id.hsv_clip);
-        llLeft = findViewById(R.id.ll_left);
-        llCenter = findViewById(R.id.ll_center);
-        llRight = findViewById(R.id.ll_right);
-        llClip = findViewById(R.id.ll_clip);
-        llSvClip = findViewById(R.id.ll_sv_clip);
+        tvClipTime = (TextView) findViewById(R.id.tv_clip_time);
+        tvPlayTime = (TextView) findViewById(R.id.tv_play_time);
+        llStartPos = (LinearLayout) findViewById(R.id.ll_start);
+        llEndPos = (LinearLayout) findViewById(R.id.ll_end);
+        svClip = (HorizontalScrollView) findViewById(R.id.hsv_clip);
+        llLeft = (LinearLayout) findViewById(R.id.ll_left);
+        llCenter = (LinearLayout) findViewById(R.id.ll_center);
+        llRight = (LinearLayout) findViewById(R.id.ll_right);
+        llClip = (LinearLayout) findViewById(R.id.ll_clip);
+        llSvClip = (LinearLayout) findViewById(R.id.ll_sv_clip);
         //设置遮罩与滑动按钮，滑动按钮拦截分发事件不再向scrollview传递，遮罩向下传递
         llStartPos.setOnTouchListener(new OnTouchListener() {
             @Override
@@ -287,9 +312,9 @@ public class ClipLayout extends LinearLayout {
                 return false;
             }
         });
-        videoView = findViewById(R.id.videoview);
-        ivFrame = findViewById(R.id.iv_frame);
-        rlFrame = findViewById(R.id.rl_frame);
+        videoView = (VideoView) findViewById(R.id.videoview);
+        ivFrame = (ImageView) findViewById(R.id.iv_frame);
+        rlFrame = (RelativeLayout) findViewById(R.id.rl_frame);
         rlFrame.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -309,7 +334,6 @@ public class ClipLayout extends LinearLayout {
                             RelativeLayout.LayoutParams playTimeLayoutParams = (RelativeLayout.LayoutParams) tvPlayTime.getLayoutParams();
                             playTimeLayoutParams.setMargins((int) (llStartPos.getX() + llStartPos.getWidth() + (llEndPos.getX() - llStartPos.getX() - llStartPos.getWidth()) * (float) seekBar.getProgress() / (float) seekBar.getMax()) - tvPlayTime.getWidth() / 2, getResources().getDimensionPixelSize(R.dimen.clip_time_margin_top), 0, getResources().getDimensionPixelSize(R.dimen.clip_time_margin_bottom));
                             tvPlayTime.setLayoutParams(playTimeLayoutParams);
-
                         }
                     });
                     seekAnimator.addListener(new Animator.AnimatorListener() {
@@ -322,6 +346,8 @@ public class ClipLayout extends LinearLayout {
 
                         @Override
                         public void onAnimationEnd(Animator animator) {
+                            if (isStopTrigAnimEnd)
+                                return;
                             videoView.pause();
                             //等待视频彻底停止，pause是个异步方法会出现音画进度不同步，延迟执行调整进度
                             Observable.timer(500, TimeUnit.MILLISECONDS)
@@ -360,7 +386,7 @@ public class ClipLayout extends LinearLayout {
                 rlFrame.setVisibility(GONE);
             }
         });
-        seekBar = findViewById(R.id.seekBar);
+        seekBar = (SeekBar) findViewById(R.id.seekBar);
         seekBar.setThumbOffset(0);
         setVideo("");
     }
@@ -457,7 +483,8 @@ public class ClipLayout extends LinearLayout {
                     //左滑块占总进度的位移百分比
                     float StartPercent = (float) (llStartOffset + svClip.getScrollX()) / (float) llSvClip.getWidth();
                     float EndPercent = (float) (llEndOffset + svClip.getScrollX()) / (float) llSvClip.getWidth();
-//                    clipPositionListener.onStartPosChange((int) (videoLength * (ScrollPercent + StartPercent)), (int) (videoLength * (ScrollPercent + EndPercent)), "");
+                    startPos = (int) (videoLength * StartPercent);
+                    endPos = (int) (videoLength * EndPercent);
                     clipPositionListener.onStartPosChange((int) (videoLength * StartPercent), (int) (videoLength * EndPercent), "");
                 }
             } else if (nowTouchView == 1) {
@@ -471,6 +498,8 @@ public class ClipLayout extends LinearLayout {
                 //左滑块占总进度的位移百分比
                 float StartPercent = (float) (llStartOffset + svClip.getScrollX()) / (float) llSvClip.getWidth();
                 float EndPercent = (float) (llEndOffset + svClip.getScrollX()) / (float) llSvClip.getWidth();
+                startPos = (int) (videoLength * StartPercent);
+                endPos = (int) (videoLength * EndPercent);
                 clipPositionListener.onEndPosChange((int) (videoLength * StartPercent), (int) (videoLength * EndPercent), "");
             } else if (nowTouchView == 2) {
                 // TODO: 2017/8/8 滑动暂时不监听，交给ScrollView的ScrollListener处理
@@ -483,8 +512,11 @@ public class ClipLayout extends LinearLayout {
                 //左滑块占总进度的位移百分比
                 float StartPercent = (float) (llStartOffset + svClip.getScrollX()) / (float) llSvClip.getWidth();
                 float EndPercent = (float) (llEndOffset + svClip.getScrollX()) / (float) llSvClip.getWidth();
+                startPos = (int) (videoLength * StartPercent);
+                endPos = (int) (videoLength * EndPercent);
                 clipPositionListener.onScrollPosChange((int) (videoLength * StartPercent), (int) (videoLength * EndPercent), "");
             }
+
             nowTouchView = 4;
             DownX = 0;
             fingerOffset = 0;

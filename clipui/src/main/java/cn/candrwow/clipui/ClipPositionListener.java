@@ -43,18 +43,4 @@ public interface ClipPositionListener {
      * 取消裁剪
      */
     void onCancelClip();
-
-    public void onStart();
-
-    /**
-     * 所在ui恢复时调用
-     */
-    public void onResume();
-
-    public void onPause();
-
-    /**
-     * 当所在ui不可见时，立刻销毁videoView
-     */
-    public void onStop();
 }

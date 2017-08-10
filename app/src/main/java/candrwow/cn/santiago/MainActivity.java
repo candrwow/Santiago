@@ -12,12 +12,13 @@ import android.widget.Toast;
 import cn.candrwow.clipui.ClipLayout;
 
 public class MainActivity extends AppCompatActivity {
+    ClipLayout clipLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        final ClipLayout clipLayout = (ClipLayout) findViewById(R.id.v);
+        clipLayout = (ClipLayout) findViewById(R.id.v);
 //        ValueAnimator valueAnimator = ValueAnimator.ofInt(8, 200);
 //        valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
 //            @Override
@@ -28,5 +29,17 @@ public class MainActivity extends AppCompatActivity {
 //        valueAnimator.setDuration(6000);
 //        valueAnimator.start();
 
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        clipLayout.trigStart();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        clipLayout.trigStop();
     }
 }
